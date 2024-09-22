@@ -158,7 +158,7 @@ const logoutUser = asyncHandler(async (req, res) => {
     // find user
     // set refreshToken to undifined
     // 
-    await User.findByIdAndUpdate(res.user._id,
+    await User.findByIdAndUpdate(req.user._id,
         {
             $set: {refreshToken: undefined}
         },
@@ -180,6 +180,8 @@ const logoutUser = asyncHandler(async (req, res) => {
         new ApiResponse(200, {}, "User logged out")
     )
 })
+
+
 
 export  { 
     registerUser, 
