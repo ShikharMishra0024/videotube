@@ -348,6 +348,98 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
         )
 })
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    // aggregate pipeline -> channel subscriber count, count channel subscribed to, am'i subscribed, 
+    const { username } = req.params
+
+    if(!username.trim()) {
+        throw new ApiResponse(400, "username required")
+    }
+
+
+    const channel = await User.aggregate([ 
+        {
+            $match: username?.toLowerCase()
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {
+                subscribersCount: {$size: "subscribers"},
+                subscribedToCount: {$size: "subscribedTo"},
+                isSubscribed: {
+                    $cond: {
+                        if: {$in: [req.user?._id, "subscribers.subscriber"]}, 
+                        than: true,
+                        else: false
+                    }                   
+                }
+            }
+        },
+        {
+            $project: {
+                username: 1,
+                email: 1,
+                fullName: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                subscribedToCount: 1,
+                isSubscribed: 1
+            }
+        }
+    ])
+
+    if(!channel.length) {
+        throw new ApiResponse(404, "channel does not exit")
+    }
+
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200, 
+                channel,
+                "user channel fetched successfully"
+            )
+        )
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    const UserWatchHistory = await User.aggregate([
+        {
+            $match: req.user?._id
+        },
+        {
+            $project: {watchHistory: 1}
+        }
+    ])
+
+    return res 
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                UserWatchHistory,
+                "Watch history fetched successfully"
+            )
+        )
+})
+
 export {
     registerUser,
     loginUser,
